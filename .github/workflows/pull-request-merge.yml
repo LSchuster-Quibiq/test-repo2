@@ -42,6 +42,9 @@ jobs:
     needs: check_pull_request_preconditions
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    if: |
+      (github.event.pull_request.base.ref == 'test' || github.event.pull_request.base.ref == 'prod') &&
+      github.event.review.state == 'approved'
     permissions:
       contents: write
       pull-requests: write
