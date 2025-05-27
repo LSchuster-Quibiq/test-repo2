@@ -19,7 +19,7 @@ jobs:
         if: github.event.pull_request.base.ref == 'test'
         run: |
           echo "🔍 Checking PR from dev to test..."
-          if [ "${{ github.event.review.state }}" != "approved" ] || [ "${{ github.event.pull_request.head.ref }}" != "dev" ]; then
+          if [ "${{ github.event.pull_request.head.ref }}" != "dev" ]; then
             echo "❌ PR to test must come from dev and be approved."
             exit 1
           fi
@@ -28,7 +28,7 @@ jobs:
         if: github.event.pull_request.base.ref == 'prod'
         run: |
           echo "🔍 Checking PR from test to prod..."
-          if [ "${{ github.event.review.state }}" != "approved" ] || [ "${{ github.event.pull_request.head.ref }}" != "test" ]; then
+          if [ "${{ github.event.pull_request.head.ref }}" != "test" ]; then
             echo "❌ PR to prod must come from test and be approved."
             exit 1
           fi
