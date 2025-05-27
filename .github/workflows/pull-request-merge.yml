@@ -87,8 +87,8 @@ jobs:
         run: |
           git reset --hard
           git checkout ${{ fromJSON(steps.get_pr.outputs.result).base.ref }}
-          git merge --ff-only origin/${{ fromJSON(steps.get_pr.outputs.result).head.ref }}
-          git push origin ${{ fromJSON(steps.get_pr.outputs.result).base.ref }}
+          git rebase origin/${{ fromJSON(steps.get_pr.outputs.result).head.ref }}
+          git push
 
   comment_on_error:
     name: Comment on any error
