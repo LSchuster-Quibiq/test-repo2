@@ -95,6 +95,8 @@ jobs:
     needs: [check_pull_request_preconditions, make_merge]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
+    permissions:
+      pull-requests: write
 
     if: failure()
     steps:
