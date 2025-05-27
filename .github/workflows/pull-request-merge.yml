@@ -1,9 +1,9 @@
 name: Pull Request Merge Workflow
 
 on:
-  pull_request:
+  pull_request_review:
     types:
-      - opened
+      - submitted
 
 jobs:
   check_pull_request_preconditions:
@@ -16,20 +16,24 @@ jobs:
 
     steps:
       - name: Check dev → test
-        if: github.event.pull_request.base.ref == 'test'
+        if: |
+          github.event.pull_request.base.ref == 'test' ||
+          github.event.review.state != 'approved'
         run: |
-          echo "🔍 Checking PR from dev to test..."
+          echo "Checking PR from dev to test..."
           if [ "${{ github.event.pull_request.head.ref }}" != "dev" ]; then
-            echo "❌ PR to test must come from dev and be approved."
+            echo "PR to test must come from dev and be approved."
             exit 1
           fi
 
       - name: Check test → prod
-        if: github.event.pull_request.base.ref == 'prod'
+        if: |
+          github.event.pull_request.base.ref == 'prod'||
+          github.event.review.state != 'approved'
         run: |
-          echo "🔍 Checking PR from test to prod..."
+          echo "Checking PR from test to prod..."
           if [ "${{ github.event.pull_request.head.ref }}" != "test" ]; then
-            echo "❌ PR to prod must come from test and be approved."
+            echo "PR to prod must come from test and be approved."
             exit 1
           fi
 
