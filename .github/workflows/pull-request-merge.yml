@@ -1,0 +1,116 @@
+name: Pull Request Merge Workflow
+
+on:
+  pull_request_review:
+    types:
+      - submitted
+
+jobs:
+  check_pull_request_preconditions:
+    name: Check Pull Request Preconditions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      - name: Check dev → test
+        if: github.event.pull_request.base.ref == 'test'
+        run: |
+          echo "🔍 Checking PR from dev to test..."
+          if [ "${{ github.event.review.state }}" != "approved" ] || [ "${{ github.event.pull_request.head.ref }}" != "dev" ]; then
+            echo "❌ PR to test must come from dev and be approved."
+            exit 1
+          fi
+
+      - name: Check test → prod
+        if: github.event.pull_request.base.ref == 'prod'
+        run: |
+          echo "🔍 Checking PR from test to prod..."
+          if [ "${{ github.event.review.state }}" != "approved" ] || [ "${{ github.event.pull_request.head.ref }}" != "test" ]; then
+            echo "❌ PR to prod must come from test and be approved."
+            exit 1
+          fi
+
+  make_merge:
+    name: Merge Pull Request
+    needs: check_pull_request_preconditions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Creating comment on pr
+        uses: actions/github-script@v7.0.1
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🤖 Trying to merge Pull Requests, please wait for the Action to complete'
+            })
+
+      - name: Get PR information
+        uses: actions/github-script@v7.0.1
+        id: get_pr
+        with:
+          script: |
+            const request = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            }
+            core.info(`Getting PR #${request.pull_number} from ${request.owner}/${request.repo}`)
+            try {
+              const result = await github.rest.pulls.get(request)
+              return result.data
+            } catch (err) {
+              core.setFailed(`Request failed with error ${err}`)
+            }
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4.2.2
+        with:
+          ref: ${{ fromJSON(steps.get_pr.outputs.result).base.ref }}
+          fetch-depth: 0
+
+      - name: Setup Identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge by Rebase
+        id: merge_by_rebase
+        run: |
+          git reset --hard
+          git rebase origin/${{ fromJSON(steps.get_pr.outputs.result).head.ref }}
+
+      - name: Push to Base
+        id: push_to_base
+        if: steps.merge_by_rebase.outcome == 'success'
+        run: |
+          git push
+        working-directory: .
+
+  comment_on_error:
+    name: Comment on any error
+    needs: [check_pull_request_preconditions, make_merge]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+
+    if: failure()
+    steps:
+      - name: Comment on Release Failure
+        uses: actions/github-script@v7.0.1
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🤖 I am very sorry!\nUnfortunately, I was not able to Merge the Pull Request.\n Take a look at [the run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})'
+            })
