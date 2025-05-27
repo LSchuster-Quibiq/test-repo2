@@ -83,18 +83,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Merge by Rebase
-        id: merge_by_rebase
+      - name: Merge
         run: |
           git reset --hard
-          git rebase origin/${{ fromJSON(steps.get_pr.outputs.result).head.ref }}
-
-      - name: Push to Base
-        id: push_to_base
-        if: steps.merge_by_rebase.outcome == 'success'
-        run: |
-          git push
-        working-directory: .
+          git checkout ${{ fromJSON(steps.get_pr.outputs.result).base.ref }}
+          git merge --ff-only origin/${{ fromJSON(steps.get_pr.outputs.result).head.ref }}
+          git push origin ${{ fromJSON(steps.get_pr.outputs.result).head.ref }}
 
   comment_on_error:
     name: Comment on any error
